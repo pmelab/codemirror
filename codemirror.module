@@ -1,0 +1,445 @@
+<?php
+/**
+ * @file
+ * Codemirror integration for Drupal.
+ */
+
+
+/**
+ * Implements hook_menu().
+ */
+function codemirror_menu() {
+  return array(
+    'admin/config/user-interface/codemirror' => array(
+      'title' => 'CodeMirror',
+      'description' => 'Global CodeMirror settings.',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('codemirror_global_settings_form'),
+      'access arguments' => array('administer site configuration'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_permission().
+ */
+function codemirror_permission() {
+  return array(
+    'codemirror override settings' => array(
+      'title' => t('Override codemirror settings'),
+      'description' => t('Allow the user to configure CodeMirror editor for his account.'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_wysiwyg_include_directory().
+ */
+function codemirror_wysiwyg_include_directory($type) {
+  if ($type == 'editors') {
+    return 'editors';
+  }
+  return FALSE;
+}
+
+/**
+ * Fetch all available fonts.
+ */
+function codemirror_fonts() {
+  $fonts = cache_get('codemirror_fonts');
+  if ($fonts) {
+    return $fonts->data;
+  }
+  $fonts = array(
+    '"Courier New", Courier, monospace' => 'Courier',
+    '"Lucida Console", Monaco, monospace' => 'Lucida',
+  );
+  if (module_exists('fontyourface')) {
+    $theme_declarations = fontyourface_parse_theme_info_file();
+    if (isset($theme_declarations)) {
+      foreach ($theme_declarations as $font_provider => $_fonts) {
+        if (module_exists($font_provider)) {
+          foreach ($_fonts as $declaration) {
+            $info_function = $font_provider . '_fontyourface_info';
+            if (function_exists($info_function)) {
+              $provider_info = $info_function();
+              $font_url = $provider_info['base_path'] . trim($declaration);
+              $font = fontyourface_load_font_by_url($font_url);
+              $fonts[$font->css_family] = $font->css_family;
+            }
+          }
+        }
+      }
+    }
+  }
+  cache_set('codemirror_fonts', $fonts);
+  return $fonts;
+}
+
+/**
+ * Fetch all codemirror language modes.
+ *
+ * Returns an array of language modes, keyed by mime type.
+ * Example:
+ * <pre>
+ * $['text/plain'] = array(
+ *   'mode' => 'plaintext',
+ *   'name' => 'Plain text',
+ *   'files' => array(
+ *     ... javascript files to be loaded.
+ *   ),
+ * );
+ * </pre>
+ */
+function codemirror_languages() {
+  $languages = cache_get('codemirror_languages');
+  if ($languages) {
+    return $languages->data;
+  }
+  $path = libraries_get_path('codemirror') . '/mode';
+  $meta = file_get_contents($path . '/meta.js');
+  preg_match_all('/name\:\s*\'(?<name>.*?)\'.*mime\:\s*\'(?<mime>.*?)\'.*mode\:\s*\'(?<mode>.*?)\'/', $meta, $matches, PREG_SET_ORDER);
+  $languages = array();
+  foreach ($matches as $lang) {
+    if (array_key_exists($lang['mime'], $languages)) {
+      continue;
+    }
+    $languages[$lang['mime']] = array(
+      'mode' => $lang['mode'],
+      'name' => $lang['name'],
+      'js' => array(),
+      'css' => array(),
+    );
+  }
+  drupal_alter('codemirror_languages', $languages);
+  cache_set('codemirror_languages', $languages);
+  return $languages;
+}
+
+/**
+ * Fetch all available themes.
+ */
+function codemirror_themes() {
+  $themes = cache_get('codemirror_themes');
+  if ($themes) {
+    return $themes->data;
+  }
+  $path = libraries_get_path('codemirror');
+  $scan = file_scan_directory($path . '/theme', '/.*\.css/', array(
+    'key' => 'name',
+  ));
+  $themes = array();
+  foreach ($scan as $name => $theme) {
+    $themes[$name] = (array) $theme;
+    $themes[$name]['css'] = array(
+      file_create_url($themes[$name]['uri']),
+    );
+    $themes[$name]['js'] = array();
+    $words = explode('-', $name);
+    array_walk($words, '_codemirror_ucfirst');
+    $themes[$name]['name'] = implode(' ', $words);
+  }
+  // Fix solarized. Its two themes in one.
+  $themes['solarized light'] = $themes['solarized'];
+  $themes['solarized light']['name'] = 'Solarized Light';
+  $themes['solarized dark'] = $themes['solarized'];
+  $themes['solarized dark']['name'] = 'Solarized Dark';
+  unset($themes['solarized']);
+
+  drupal_alter('codemirror_themes', $themes);
+  cache_set('codemirror_themes', $themes);
+  return $themes;
+}
+
+/**
+ * Retrieve all keymaps.
+ */
+function codemirror_keymaps() {
+  $keymaps = cache_get('codemirror_keympas');
+  if ($keymaps) {
+    return $keymaps->data;
+  }
+  $path = libraries_get_path('codemirror');
+  $scan = file_scan_directory($path . '/keymap', '/.*\.js/', array(
+    'key' => 'name',
+  ));
+  $keymaps = array(
+    'default' => array(
+      'name' => t('Default'),
+      'keymap' => 'default',
+      'js' => array(),
+      'css' => array(),
+    ),
+  );
+  foreach ($scan as $name => $map) {
+    $keymaps[$name] = array(
+      'name' => ucfirst($name),
+      'keymap' => $name,
+      'js' => array(
+        file_create_url($map->uri),
+      ),
+      'css' => array(),
+    ) + (array) $map;
+  }
+  drupal_alter('codemirror_keymaps', $keymaps);
+  cache_set('codemirror_keymaps', $keymaps);
+  return $keymaps;
+}
+
+/**
+ * Helper function to uppercase words.
+ */
+function _codemirror_ucfirst(&$word, $index) {
+  $word = ucfirst($word);
+}
+
+/**
+ * Merge global, theme and user settings.
+ */
+function codemirror_get_settings($theme = FALSE, $account = FALSE) {
+  $settings = &drupal_static(__FUNCTION__ . $theme . ($account == FALSE));
+  if (isset($settings)) {
+    return $settings;
+  }
+  $settings = codemirror_defaults();
+  $global = variable_get('codemirror_config', array());
+  foreach ($global as $language => $config) {
+    $settings[$language] = $settings['_default_'];
+  }
+  _codemirror_merge_settings($global, $settings);
+  if ($theme) {
+    if ($theme_settings = theme_get_setting('codemirror_config', $theme)) {
+      _codemirror_merge_settings($theme_settings, $settings);
+    }
+  }
+  if ($account && isset($account->data) && is_array($account->data) && array_key_exists('codemirror_config', $account->data)) {
+    $user_conf = $account->data['codemirror_config'];
+    _codemirror_merge_settings($user_conf, $settings);
+  }
+  return $settings;
+}
+
+/**
+ * Merge settings arrays.
+ */
+function _codemirror_merge_settings($a, &$b) {
+  foreach ($a as $lang => $set) {
+    if (!array_key_exists($lang, $b)) {
+      continue;
+    }
+    foreach ($set as $key => $value) {
+      if (!empty($value)) {
+        $b[$lang][$key] = $value;
+      }
+    }
+  }
+}
+
+/**
+ * Default values for proper operability even without settings.
+ */
+function codemirror_defaults() {
+  return array(
+    '_default_' => array(
+      'theme' => 'eclipse',
+      'font' => '"Courier New", Courier, monospace',
+      'fontsize' => 15,
+      'lineheight' => 20,
+      'smartIndent' => TRUE,
+      'lineWrapping' => FALSE,
+      'lineNumbers' => FALSE,
+      'indentUnit' => 2,
+      'tabSize' => 4,
+      'keyMap' => 'default',
+    ),
+  );
+}
+
+/**
+ * Implements hook_init().
+ */
+function codemirror_init() {
+  drupal_add_js(drupal_get_path('module', 'codemirror') . '/codemirror-integration.js');
+  drupal_add_css(drupal_get_path('module', 'codemirror') . '/codemirror-integration.css');
+  global $user;
+  global $theme;
+  $settings = codemirror_get_settings($theme, $user);
+
+  // Attach information about files to be lazy-loaded.
+  $plugins = array();
+  $plugins['languages'] = codemirror_languages();
+  $plugins['keymaps'] = codemirror_keymaps();
+  $plugins['themes'] = codemirror_themes();
+  foreach ($settings as $lang => $setting) {
+    $settings[$lang]['js'] = array();
+    $settings[$lang]['css'] = array();
+    foreach ($plugins as $type => $plugin) {
+      $key = $lang;
+      if ($type == 'keymaps') {
+        $key = @$setting['keyMap'];
+      }
+      elseif ($type == 'themes') {
+        $key = @$setting['theme'];
+      }
+      if (array_key_exists($key, $plugin)) {
+        if (array_key_exists('mode', $plugin[$key])) {
+          $settings[$lang]['mode'] = $plugin[$key]['mode'];
+        }
+        foreach ($plugin[$key]['js'] as $file) {
+          $settings[$lang]['js'][] = $file;
+        }
+        foreach ($plugin[$key]['css'] as $file) {
+          $settings[$lang]['css'][] = $file;
+        }
+      }
+    }
+  }
+
+  $modes = array();
+  $mimes = array();
+  foreach (codemirror_languages() as $mime => $lang) {
+    if (array_key_exists('uri', $lang)) {
+      $modes[$lang['mode']] = $lang['uri'];
+    }
+    $mimes[$mime] = $lang['mode'];
+  }
+
+  drupal_add_js(array(
+    'codemirror' => array(
+      'languages' => $settings,
+      'path' => file_create_url(libraries_get_path('codemirror')),
+      'module' => file_create_url(drupal_get_path('module', 'codemirror')),
+      'modes' => $modes,
+      'mimes' => $mimes,
+    ),
+  ), 'setting');
+}
+
+/**
+ * Implements hook_theme().
+ */
+function codemirror_theme() {
+  return array(
+    'codemirror_settings_table' => array(
+      'render element' => 'form',
+      'file' => 'includes/codemirror.theme.inc',
+    ),
+  );
+}
+
+/**
+ * Implements hook_element_info().
+ */
+function codemirror_element_info() {
+  $elements = array();
+  $elements['codemirror_config'] = array(
+    '#input' => TRUE,
+    '#process' => array('_codemirror_config_element_process'),
+    '#element_validate' => array('_codemirror_config_element_validate'),
+  );
+  return $elements;
+}
+
+/**
+ * Wrapper to load elements include file.
+ */
+function _codemirror_config_element_process($element, $form_state, &$complete_form) {
+  module_load_include('inc', 'codemirror', 'includes/codemirror_config.element');
+  return codemirror_config_element_process($element, $form_state, $complete_form);
+}
+
+/**
+ * Wrapper to load elements include file.
+ */
+function _codemirror_config_element_validate(&$element, &$form_state) {
+  module_load_include('inc', 'codemirror', 'includes/codemirror_config.element');
+  codemirror_config_element_validate($element, $form_state);
+}
+
+/**
+ * Global settings form.
+ */
+function codemirror_global_settings_form($form, &$form_state) {
+  $form['codemirror_fieldset'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Global Settings'),
+    '#description' => t('Configure global behavior of CodeMirror.'),
+    'codemirror_config' => array(
+      '#type' => 'codemirror_config',
+      '#default_value' => codemirror_get_settings(),
+      '#available_settings' => array(
+        'smartIndent',
+        'lineWrapping',
+        'lineNumbers',
+        'indentUnit',
+        'tabSize',
+      ),
+    ),
+  );
+  return system_settings_form($form);
+}
+
+/**
+ * Implements hook_form_system_theme_settings_alter().
+ */
+function codemirror_form_system_theme_settings_alter(&$form, &$form_state) {
+  $theme = FALSE;
+  if (preg_match('/^theme_(.+)_settings$/', $form['var']['#value'], $matches)) {
+    $theme = $matches[1];
+  }
+  $form['codemirror_fieldset'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('CodeMirror display'),
+    '#description' => t('Configure codemirror display for each language.'),
+    'codemirror_config' => array(
+      '#type' => 'codemirror_config',
+      '#default_value' => codemirror_get_settings($theme),
+      '#override' => TRUE,
+      '#available_settings' => array(
+        'theme',
+        'font',
+        'fontsize',
+        'lineheight',
+      ),
+    ),
+  );
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function codemirror_form_user_profile_form_alter(&$form, &$form_state) {
+  if (user_access('codemirror override settings', $form_state['user'])) {
+    $form['codemirror_fieldset'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Configure CodeMirror behavior'),
+      '#collapsible' => FALSE,
+      '#collapsed' => FALSE,
+      '#access' => user_access('override codemirror mode'),
+      'codemirror_config' => array(
+        '#type' => 'codemirror_config',
+        '#default_value' => codemirror_get_settings(FALSE, $form_state['user']),
+        '#override' => TRUE,
+        '#available_settings' => array(
+          'theme',
+          'fontsize',
+          'font',
+          'lineheight',
+          'smartIndent',
+          'lineWrapping',
+          'lineNumbers',
+          'keyMap',
+        ),
+      ),
+    );
+  }
+}
+
+/**
+ * Implements hook_user_presave().
+ */
+function codemirror_user_presave(&$edit, $account, $category) {
+  if (array_key_exists('codemirror_config', $edit)) {
+    $edit['data']['codemirror_config'] = $edit['codemirror_config'];
+  }
+}

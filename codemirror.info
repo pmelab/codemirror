@@ -1,0 +1,8 @@
+name = Codemirror
+description = Codemirror integration for Drupal..
+package = User interface
+dependencies[] = summoner
+dependencies[] = libraries
+dependencies[] = wysiwyg
+core = 7.x
+
