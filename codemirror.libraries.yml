@@ -1,0 +1,27 @@
+codemirror:
+  remote: http://www.codemirror.net
+  version: 4.5
+  license:
+    name: MIT
+    url: http://codemirror.net/LICENSE
+    gpl-compatible: true
+  js:
+    /libraries/codemirror/lib/codemirror.js: {}
+    /libraries/codemirror/addon/mode/loadmode.js: {}
+  css:
+    base:
+      /libraries/codemirror/lib/codemirror.css: {}
+
+drupal.codemirror:
+  version: VERSION
+  js:
+    js/codemirror.drupal.js: {}
+  css:
+    base:
+      css/codemirror.drupal.css: {}
+  dependencies:
+    - core/jquery
+    - core/drupal
+    - core/drupal.debounce
+    - codemirror/codemirror
+    - editor/drupal.editor

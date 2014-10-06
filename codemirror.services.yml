@@ -1,0 +1,13 @@
+services:
+
+  plugin.manager.codemirror:
+    class: Drupal\Core\Plugin\DefaultPluginManager
+    arguments: ['Plugin/CodeMirror', '@container.namespaces', '@module_handler', 'Drupal\codemirror\Annotation\CodeMirrorPlugin']
+
+  discovery.codemirror.modes.packaged:
+    class: Drupal\codemirror\Discovery\PackagedModeDiscovery
+    arguments: ['@cache.discovery']
+
+  discovery.codemirror.themes.yaml:
+    class: Drupal\codemirror\Discovery\YamlThemeDiscovery
+    arguments: ['@cache.discovery', '@module_handler']

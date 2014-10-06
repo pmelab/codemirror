@@ -1,0 +1,9 @@
+name: CodeMirror
+type: module
+description: "Code highlighting and editing with CodeMirror."
+package: User Interface
+core: 8.x
+version: VERSION
+dependencies:
+  - summoner
+  - editor

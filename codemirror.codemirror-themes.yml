@@ -1,0 +1,153 @@
+default:
+  name: Default
+  files: []
+
+3024-day:
+  name: 3024 - Day
+  files:
+    - /libraries/codemirror/theme/3024-day.css
+
+3024-night:
+  name: 3024 - Night
+  files:
+    - /libraries/codemirror/theme/3024-night.css
+
+ambiance:
+  name: Ambiance
+  files:
+    - /libraries/codemirror/theme/ambiance.css
+
+base16-dark:
+  name: Base16 Dark
+  files:
+    - /libraries/codemirror/theme/base16-dark.css
+
+base16-light:
+  name: Base16 Light
+  files:
+    - /libraries/codemirror/theme/base16-light.css
+
+blackboard:
+  name: Blackboard
+  files:
+    - /libraries/codemirror/theme/blackboard.css
+
+cobalt:
+  name: Cobalt
+  files:
+    - /libraries/codemirror/theme/cobalt.css
+
+eclipse:
+  name: Eclipse
+  files:
+    - /libraries/codemirror/theme/eclipse.css
+
+elegant:
+  name: Elegant
+  files:
+    - /libraries/codemirror/theme/elegant.css
+
+erlang-dark:
+  name: Erlang Dark
+  files:
+    - /libraries/codemirror/theme/erlang-dark.css
+
+erlang-dark:
+  name: Lesser Dark
+  files:
+    - /libraries/codemirror/theme/lesser-dark.css
+
+mbo:
+  name: MBO
+  files:
+    - /libraries/codemirror/theme/mbo.css
+
+mdn-like:
+  name: MDN-Like
+  files:
+    - /libraries/codemirror/theme/mdn-like.css
+
+midnight:
+  name: Midnight
+  files:
+    - /libraries/codemirror/theme/midnight.css
+
+monokai:
+  name: Monokai
+  files:
+    - /libraries/codemirror/theme/monokai.css
+
+neat:
+  name: Neat
+  files:
+    - /libraries/codemirror/theme/neat.css
+
+neo:
+  name: Neo
+  files:
+    - /libraries/codemirror/theme/neo.css
+
+night:
+  name: Night
+  files:
+    - /libraries/codemirror/theme/night.css
+
+paraiso-dark:
+  name: Paraiso Dark
+  files:
+    - /libraries/codemirror/theme/pariaso-dark.css
+
+paraiso-light:
+  name: Paraiso Light
+  files:
+    - /libraries/codemirror/theme/pariaso-light.css
+
+pastel-on-dark:
+  name: Pastel on Dark
+  files:
+    - /libraries/codemirror/theme/pastel-on-dark.css
+
+rubyblue:
+  name: Ruby Blue
+  files:
+    - /libraries/codemirror/theme/rubyblue.css
+
+solarized dark:
+  name: Solarized Dark
+  files:
+    - /libraries/codemirror/theme/solarized.css
+
+solarized light:
+  name: Solarized Light
+  files:
+    - /libraries/codemirror/theme/solarized.css
+
+the-matrix:
+  name: The Matirx
+  files:
+    - /libraries/codemirror/theme/the-matrix.css
+
+tomorrow-night-eighties:
+  name: Tomorrow Night 80's
+  files:
+    - /libraries/codemirror/theme/tomorrow-night-eighties.css
+
+twilight:
+  name: Twilight
+  files:
+    - /libraries/codemirror/theme/twilight.css
+
+vibrant-ink:
+  name: Vibrant Ink
+  files:
+    - /libraries/codemirror/theme/vibrant-ink.css
+
+xq-dark:
+  name: XQ Dark
+  files:
+    - /libraries/codemirror/theme/xq-dark.css
+
+xq-light:
+  name: XQ Light
+  files:
+    - /libraries/codemirror/theme/xq-light.css
